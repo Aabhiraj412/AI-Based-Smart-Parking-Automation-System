@@ -2,13 +2,15 @@ import cv2
 import pickle
 import os
 
-DATA_FILE = "Model/tp"
+DATA_FILE = "Backend/Model/tp"
 
 # Load saved rectangles safely
 if os.path.exists(DATA_FILE):
     try:
         with open(DATA_FILE, "rb") as f:
             lis = pickle.load(f)
+            print(f"Loaded {len(lis)} rectangles from {DATA_FILE}")
+            print("Rectangles:", lis)
     except:
         lis = []
 else:
@@ -73,7 +75,7 @@ cv2.namedWindow("image")
 cv2.setMouseCallback("image", mouse_callback)
 
 while True:
-    img = cv2.imread("Model/img.png")
+    img = cv2.imread("Backend/Model/img.png")
 
     if img is None:
         print("Error: img.png not found")

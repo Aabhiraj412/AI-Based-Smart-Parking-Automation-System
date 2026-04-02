@@ -4,11 +4,11 @@ import cv2
 import pickle
 
 # video feed
-cap = cv2.VideoCapture('Model/carPark.mp4')
+cap = cv2.VideoCapture('Backend/Model/carPark.mp4')
 
 w,h = 107,48
 
-with open('Model/Positions', 'rb') as fil:
+with open('Backend/Model/Positions', 'rb') as fil:
     lis = pickle.load(fil)
 
 def chkSpace(modified_img):

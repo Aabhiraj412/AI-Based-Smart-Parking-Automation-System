@@ -5,7 +5,7 @@ import pickle
 w,h = 107,48
 
 try:
-    with open('Model/Positions','rb') as fil:
+    with open('Backend/Model/Positions','rb') as fil:
         lis = pickle.load(fil)
 except:
     lis = []
@@ -24,14 +24,14 @@ def click(e,x,y,f,p):
         if t:
             lis.append((x,y))
 
-    with open('Model/Positions', 'wb') as fil:
+    with open('Backend/Model/Positions', 'wb') as fil:
         pickle.dump(lis,fil)
 
         
 
 while True:
     
-    img = cv2.imread('Model/img.png')
+    img = cv2.imread('Backend/Model/img.png')
     
     for pos in lis:
         cv2.rectangle(img,pos,(pos[0]+w,pos[1]+h),(0,255,0),2)
