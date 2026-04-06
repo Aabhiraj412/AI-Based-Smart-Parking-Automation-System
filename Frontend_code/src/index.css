@@ -1,7 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --g50: #f0faf4; --g100: #d1f0df; --g200: #a3e0be; --g400: #3ab36e;
+  --g50: #d3ebdc; --g100: #b4d6c4; --g200: #b4fcd5; --g400: #3ab36e;
   --g500: #2a9358; --g600: #1f7544; --g800: #0f3d24;
   --white: #ffffff; --ink: #0a1f12; --ink2: #2d4a36; --ink3: #5a7a62;
   --surface: #f7fdf9; --border: #d4edd9;
