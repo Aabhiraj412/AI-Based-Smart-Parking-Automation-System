@@ -31,7 +31,7 @@ def click(e,x,y,f,p):
 
 while True:
     
-    img = cv2.imread('Backend/Model/img.png')
+    img = cv2.imread('Backend/Input/img.png')
     
     for pos in lis:
         cv2.rectangle(img,pos,(pos[0]+w,pos[1]+h),(0,255,0),2)

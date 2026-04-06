@@ -75,7 +75,7 @@ cv2.namedWindow("image")
 cv2.setMouseCallback("image", mouse_callback)
 
 while True:
-    img = cv2.imread("Backend/Model/img.png")
+    img = cv2.imread("Backend/Input/img.png")
 
     if img is None:
         print("Error: img.png not found")
