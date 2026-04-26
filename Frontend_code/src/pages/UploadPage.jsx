@@ -926,7 +926,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate }                  from 'react-router-dom'
 import { useStore }                     from '../store/useStore'
-import { uploadVideo }                  from '../services/api'
+import { uploadVideo, startLiveSession, getCameraProxyUrl } from '../services/api'
 import { NavBar, showToast }            from '../components/Common'
 
 // ── Snapshot extractor ────────────────────────────────────────────────────────
@@ -992,8 +992,11 @@ export default function UploadPage() {
   const [dragging,   setDragging]   = useState(false)
   const [snapState,  setSnapState]  = useState('idle') // 'idle'|'loading'|'done'|'failed'
 
+  const [ipStreamActive, setIpStreamActive] = useState(false) // true when showing IP cam feed
+
   const uploadVideoRef = useRef(null)
   const camVideoRef    = useRef(null)
+  const ipImgRef       = useRef(null)   // ref for IP camera <img> preview
   const fileInputRef   = useRef(null)
   const camStreamRef   = useRef(null)
 
@@ -1021,6 +1024,7 @@ export default function UploadPage() {
     setModeState(m); setVideoMode(m)
     setFile(null); setPreviewUrl(null)
     setCamReady(false); setRtspUrl('')
+    setIpStreamActive(false)
     setProgress(0); setLoading(false)
     setSnapState('idle'); setFrameSnap(null)
   }
@@ -1064,30 +1068,58 @@ export default function UploadPage() {
 
   // ── Camera ────────────────────────────────────────────────────────────────
   async function startCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      camStreamRef.current = stream
-      const vid = camVideoRef.current
-      vid.srcObject = stream
-      vid.onloadedmetadata = () => vid.play().catch((e) => showToast('Playback error: ' + e.message, 'error'))
+    const url = rtspUrl.trim()
+
+    if (url) {
+      // IP camera: show the HTTP stream in an <img> tag — no getUserMedia needed
+      setIpStreamActive(true)
       setCamReady(true)
-      showToast('Camera started', 'success')
-    } catch (e) {
-      showToast('Cannot access camera: ' + e.message, 'error')
+      showToast('IP camera stream connected', 'success')
+    } else {
+      // Local webcam: use getUserMedia
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        camStreamRef.current = stream
+        const vid = camVideoRef.current
+        vid.srcObject = stream
+        vid.onloadedmetadata = () => vid.play().catch((e) => showToast('Playback error: ' + e.message, 'error'))
+        setIpStreamActive(false)
+        setCamReady(true)
+        showToast('Camera started', 'success')
+      } catch (e) {
+        showToast('Cannot access camera: ' + e.message, 'error')
+      }
     }
   }
 
-  function stopCamera() { stopCameraStream(); setCamReady(false) }
+  function stopCamera() {
+    stopCameraStream()
+    setIpStreamActive(false)
+    setCamReady(false)
+  }
 
   function captureLiveSnapshot() {
-    const vid = camVideoRef.current
-    if (!vid || !camReady) return
-    const canvas  = document.createElement('canvas')
-    canvas.width  = vid.videoWidth  || 640
-    canvas.height = vid.videoHeight || 360
-    canvas.getContext('2d').drawImage(vid, 0, 0, canvas.width, canvas.height)
+    if (!camReady) return
+    const canvas = document.createElement('canvas')
+
+    if (ipStreamActive && ipImgRef.current) {
+      // IP camera: capture from the <img> element
+      const img = ipImgRef.current
+      canvas.width  = img.naturalWidth  || 640
+      canvas.height = img.naturalHeight || 360
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+    } else if (camVideoRef.current) {
+      // Local webcam: capture from the <video> element
+      const vid = camVideoRef.current
+      canvas.width  = vid.videoWidth  || 640
+      canvas.height = vid.videoHeight || 360
+      canvas.getContext('2d').drawImage(vid, 0, 0, canvas.width, canvas.height)
+    } else {
+      return
+    }
+
     setFrameSnap({ dataURL: canvas.toDataURL('image/jpeg', 0.88), width: canvas.width, height: canvas.height })
-    showToast('Frame captured for slot marking ✓', 'success')
+    showToast('Frame captured for slot marking', 'success')
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────
@@ -1108,7 +1140,8 @@ export default function UploadPage() {
       captureLiveSnapshot()
       setLoading(true)
       try {
-        setSessionId('live_' + Date.now())
+        const { session_id } = await startLiveSession(rtspUrl)
+        setSessionId(session_id)
         showToast('Live session started', 'success')
         navigate('/mark-coords')
       } catch (e) {
@@ -1267,16 +1300,26 @@ export default function UploadPage() {
             <div className="form-group" style={{ marginBottom:'14px' }}>
               <label className="form-label">Camera stream URL (optional)</label>
               <input className="form-input"
-                placeholder="rtsp://192.168.1.x:554/stream  — or leave blank for webcam"
+                placeholder="http://192.168.1.x:8080/video  — or leave blank for webcam"
                 value={rtspUrl} onChange={(e) => setRtspUrl(e.target.value)}
                 disabled={camReady || loading} />
               <span className="form-hint" style={{ marginTop:'4px', display:'block' }}>
-                Leave blank to use your computer's built-in webcam
+                Leave blank to use your laptop webcam. For phone camera, use IP Webcam app URL.
               </span>
             </div>
             <div className="cam-feed-wrap">
               <div className="cam-corner-bl" /><div className="cam-corner-br" />
-              <video ref={camVideoRef} autoPlay muted playsInline />
+
+              {/* Local webcam preview — hidden when using IP camera */}
+              <video ref={camVideoRef} autoPlay muted playsInline
+                style={{ display: (camReady && ipStreamActive) ? 'none' : 'block' }} />
+
+              {/* IP camera preview — proxied through Django backend to avoid CORS */}
+              {ipStreamActive && camReady && (
+                <img ref={ipImgRef} src={getCameraProxyUrl(rtspUrl.trim())} alt="IP camera feed"
+                  style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block', background:'#0d1410' }} />
+              )}
+
               <div className={`cam-overlay${camReady?' hidden':''}`}>
                 <div style={{ width:'52px', height:'52px', borderRadius:'50%', border:'1.5px solid rgba(29,158,117,0.4)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <svg width="24" height="24" fill="none" stroke="rgba(29,158,117,0.75)" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -1294,11 +1337,13 @@ export default function UploadPage() {
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:'10px', padding:'0 2px' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                   <div className="live-dot" />
-                  <span style={{ fontSize:'13px', color:'var(--g600)', fontWeight:500 }}>Camera live — ready to continue</span>
+                  <span style={{ fontSize:'13px', color:'var(--g600)', fontWeight:500 }}>
+                    {ipStreamActive ? 'IP camera connected' : 'Webcam live'} — ready to continue
+                  </span>
                 </div>
                 <div style={{ display:'flex', gap:'8px' }}>
                   <button className="btn btn-sm btn-outline" onClick={captureLiveSnapshot} disabled={loading}
-                    title="Capture current frame for coordinate marking">📸 Capture frame</button>
+                    title="Capture current frame for coordinate marking">Capture frame</button>
                   <button className="btn btn-sm btn-danger" onClick={stopCamera} disabled={loading}>Stop</button>
                 </div>
               </div>

@@ -279,7 +279,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate }                  from 'react-router-dom'
 import { useStore }                     from '../store/useStore'
-import { getStreamUrl }                 from '../services/api'
+import { getStreamUrl, stopLiveSession } from '../services/api'
 import { NavBar, showToast }            from '../components/Common'
 
 const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
@@ -345,6 +345,8 @@ export default function LiveStreamPage() {
     setPollStatus('error'); setStopped(true)
     addLog('Stream stopped by user')
     showToast('Stream stopped', 'info')
+    // Tell backend to kill the detector subprocess
+    stopLiveSession().catch(() => {})
   }
 
   function pxLabel(idx) {

@@ -105,7 +105,29 @@ export function uploadVideo(file, onProgress) {
 // }
 
 // ═══════════════════════════════════════════════════════════
-// 3. COORDINATES — send marked slot array to backend
+// 3. LIVE CAMERA — start/stop a live session (webcam or IP cam)
+//    POST /api/live/start/  → { session_id, source }
+//    POST /api/live/stop/   → { status: 'stopped' }
+// ═══════════════════════════════════════════════════════════
+export function startLiveSession(streamUrl = '') {
+  return call('/api/live/start/', {
+    method: 'POST',
+    body: JSON.stringify({ stream_url: streamUrl }),
+  })
+}
+
+export function stopLiveSession() {
+  return call('/api/live/stop/', { method: 'POST', body: JSON.stringify({}) })
+}
+
+// Proxy an IP camera stream through the Django backend to avoid CORS issues.
+// The browser <img> tag loads this URL instead of the raw IP camera URL.
+export function getCameraProxyUrl(ipCamUrl) {
+  return `${BASE}/api/camera-proxy/?url=${encodeURIComponent(ipCamUrl)}`
+}
+
+// ═══════════════════════════════════════════════════════════
+// 4. COORDINATES — send marked slot array to backend
 //    Format: [{ x1, y1, x2, y2 }, ...]
 // ═══════════════════════════════════════════════════════════
 export function saveCoordinates(sessionId, coords) {
